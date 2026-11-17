@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AeroMatch — Aircraft Recommender</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F4EFE5;
+  --card: #FDFAF4;
+  --ink: #1A1409;
+  --ink-mid: #3D2E14;
+  --ink-light: #7A6040;
+  --blue: #1B4F7A;
+  --blue-light: #2A6FA8;
+  --red: #B84C22;
+  --gold: #A07820;
+  --border: #C8B48A;
+  --border-light: #DDD0B0;
+  --shadow: rgba(26,20,9,0.13);
+  --grid: rgba(168,148,108,0.28);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  color: var(--ink);
+  min-height: 100vh;
+}
+h1,h2,h3,h4 { font-family: 'Playfair Display', Georgia, serif; }
+
+/* ── HEADER ── */
+.site-header {
+  background: var(--card);
+  border-bottom: 2px solid var(--border);
+  box-shadow: 0 2px 12px var(--shadow);
+  padding: 18px 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.logo { display:flex; align-items:center; gap:12px; }
+.logo-icon { font-size: 2rem; line-height:1; }
+.logo-text h1 { font-size: 1.55rem; color: var(--blue); letter-spacing:-.02em; }
+.logo-text p { font-size: .7rem; text-transform: uppercase; letter-spacing:.14em; color: var(--ink-light); margin-top:1px; }
+.header-meta { text-align:right; }
+.header-meta .author { font-family:'Playfair Display',serif; font-style:italic; color:var(--ink-mid); font-size:.9rem; }
+.header-meta .email { font-size:.72rem; color:var(--ink-light); font-family:monospace; margin-top:2px; }
+
+/* ── LAYOUT ── */
+.app-wrap { display:grid; grid-template-columns:360px 1fr; gap:0; min-height:calc(100vh - 73px); }
+@media(max-width:900px){ .app-wrap{grid-template-columns:1fr;} }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--card);
+  border-right: 1.5px solid var(--border);
+  padding: 24px 20px;
+  overflow-y: auto;
+  max-height: calc(100vh - 73px);
+  position: sticky; top: 73px;
+  box-shadow: 2px 0 16px rgba(26,20,9,0.06);
+  min-width: 0;
+}
+@media(max-width:900px){ .sidebar{max-height:none;position:static;border-right:none;border-bottom:1.5px solid var(--border);} }
+@media(max-width:600px){
+  .site-header{ flex-direction:column; align-items:flex-start; gap:6px; padding:14px 16px; }
+  .header-meta{ text-align:left; }
+  .main-content{ padding:18px 16px 32px; }
+  .results-table{ font-size:.72rem; }
+  .results-table th, .results-table td{ padding:7px 8px; }
+  .sidebar{ overflow-x:hidden; }
+  .range-row input[type=number]{ width:72px !important; padding:7px 6px; font-size:.78rem; }
+  .range-val{ font-size:.7rem; min-width:auto; }
+}
+
+.section-title {
+  font-family:'Playfair Display',serif;
+  font-size:.78rem; font-weight:600;
+  text-transform:uppercase; letter-spacing:.12em;
+  color:var(--blue); border-bottom:1px solid var(--border-light);
+  padding-bottom:6px; margin:20px 0 12px;
+}
+.section-title:first-child { margin-top:0; }
+
+.field { margin-bottom:14px; }
+.field label { display:block; font-size:.78rem; font-weight:500; color:var(--ink-mid); margin-bottom:5px; }
+.field input[type=range] { width:100%; accent-color:var(--blue); cursor:pointer; }
+.range-row { display:flex; align-items:center; gap:8px; min-width:0; }
+.range-row input[type=range] { flex:1 1 auto; min-width:0; width:auto; }
+.range-row input[type=number] { flex-shrink:0; }
+.range-row .range-val { flex-shrink:0; }
+.range-val { font-size:.8rem; font-weight:600; color:var(--blue); min-width:54px; text-align:right; white-space:nowrap; }
+.field input[type=number], .field select {
+  width:100%; padding:7px 10px; border:1.5px solid var(--border);
+  border-radius:5px; background:var(--bg); color:var(--ink);
+  font-family:'Inter',sans-serif; font-size:.83rem;
+  transition:border .18s;
+}
+.field input[type=number]:focus, .field select:focus { outline:none; border-color:var(--blue); }
+.field-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.radio-group { display:flex; flex-wrap:wrap; gap:6px; }
+.radio-group label {
+  cursor:pointer; padding:5px 10px; border:1.5px solid var(--border);
+  border-radius:20px; font-size:.75rem; font-weight:500; color:var(--ink-mid);
+  transition:all .18s; user-select:none; background:var(--bg);
+}
+.radio-group input[type=radio], .radio-group input[type=checkbox] { display:none; }
+.radio-group input:checked + label { background:var(--blue); color:#fff; border-color:var(--blue); }
+
+.priority-section { margin-bottom:14px; }
+.priority-list { display:flex; flex-direction:column; gap:6px; }
+.priority-item {
+  display:flex; align-items:center; gap:8px;
+  padding:7px 10px; background:var(--bg); border:1.5px solid var(--border-light);
+  border-radius:6px; font-size:.78rem; font-weight:500; cursor:grab;
+  transition:box-shadow .15s;
+}
+.priority-item:active { cursor:grabbing; box-shadow:0 4px 14px var(--shadow); }
+.priority-rank { width:20px; height:20px; background:var(--blue); color:#fff; border-radius:50%;
+  font-size:.68rem; font-weight:700; display:flex;align-items:center;justify-content:center; flex-shrink:0; }
+.priority-item span { flex:1; }
+.priority-arrows { display:flex; flex-direction:column; gap:2px; margin-left:auto; }
+.priority-arrows button {
+  width:20px; height:13px; border:1px solid var(--border); border-radius:3px;
+  background:var(--card); color:var(--ink-light); font-size:.55rem; line-height:1;
+  cursor:pointer; padding:0; display:flex; align-items:center; justify-content:center;
+  transition:background .15s, color .15s;
+}
+.priority-arrows button:hover { background:var(--blue); color:#fff; border-color:var(--blue); }
+
+.find-btn {
+  width:100%; padding:13px; margin-top:16px;
+  background:var(--blue); color:#fff; border:none; border-radius:7px;
+  font-family:'Playfair Display',serif; font-size:1.05rem; font-weight:600;
+  cursor:pointer; letter-spacing:.01em;
+  box-shadow:0 3px 12px rgba(27,79,122,.35);
+  transition:background .18s, transform .12s, box-shadow .18s;
+}
+.find-btn:hover { background:var(--blue-light); box-shadow:0 5px 18px rgba(27,79,122,.4); transform:translateY(-1px); }
+.find-btn:active { transform:translateY(0); }
+.reset-btn {
+  width:100%; padding:8px; margin-top:8px;
+  background:transparent; color:var(--ink-light); border:1.5px solid var(--border);
+  border-radius:7px; font-size:.78rem; cursor:pointer;
+  transition:border-color .15s, color .15s;
+}
+.reset-btn:hover { border-color:var(--red); color:var(--red); }
+
+/* ── MAIN CONTENT ── */
+.main-content { padding: 28px 28px 40px; min-width: 0; }
+.results-header { margin-bottom:22px; }
+.results-header h2 { font-size:1.6rem; color:var(--ink); margin-bottom:4px; }
+.results-header p { font-size:.82rem; color:var(--ink-light); }
+.empty-state {
+  text-align:center; padding:60px 20px; color:var(--ink-light);
+  border:1.5px dashed var(--border); border-radius:12px; background:rgba(253,250,244,.7);
+}
+.empty-state .plane-big { font-size:3.5rem; margin-bottom:12px; }
+.empty-state h3 { font-family:'Playfair Display',serif; font-size:1.2rem; color:var(--ink-mid); margin-bottom:6px; }
+.empty-state p { font-size:.82rem; }
+
+/* ── TOP 3 CARDS ── */
+.top3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:28px; }
+@media(max-width:1200px){ .top3{grid-template-columns:1fr 1fr;} }
+@media(max-width:700px){ .top3{grid-template-columns:1fr;} }
+
+.result-card {
+  background:var(--card); border:1.5px solid var(--border-light);
+  border-radius:12px; overflow:hidden;
+  box-shadow:2px 3px 14px var(--shadow), 0 0 0 .5px rgba(168,148,108,.2);
+  transition:transform .2s, box-shadow .2s;
+  position:relative;
+}
+.result-card:hover { transform:translateY(-3px); box-shadow:4px 8px 22px var(--shadow); }
+.result-card.rank-1 { border-color:var(--gold); }
+.result-card.rank-1::before {
+  content:'✦ TOP MATCH'; position:absolute; top:10px; right:10px; z-index:2;
+  background:var(--gold); color:#fff; font-size:.6rem; font-weight:700;
+  letter-spacing:.1em; padding:3px 8px; border-radius:20px;
+}
+
+.card-img {
+  width:100%; height:130px; object-fit:cover; background:#E8E0D0;
+  display:flex; align-items:center; justify-content:center; font-size:3rem;
+  border-bottom:1px solid var(--border-light);
+}
+.card-img img { width:100%; height:100%; object-fit:cover; }
+.card-img-placeholder {
+  width:100%; height:130px; position:relative; overflow:hidden;
+  background:linear-gradient(135deg,#EFE7D4,#DDCDB0);
+  display:flex; align-items:center; justify-content:center;
+  padding:14px 18px;
+}
+.card-img-placeholder svg { width:100%; height:100%; }
+.card-img-placeholder::after {
+  content:''; position:absolute; left:0; right:0; bottom:0; height:4px;
+  background:var(--icon-accent, var(--gold));
+}
+
+.card-body { padding:14px 16px; }
+.card-rank { font-size:.65rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-light); margin-bottom:4px; }
+.card-name { font-family:'Playfair Display',serif; font-size:1.05rem; font-weight:700; color:var(--ink); margin-bottom:2px; line-height:1.2; }
+.card-mfg { font-size:.73rem; color:var(--ink-light); margin-bottom:10px; }
+
+.cat-badge {
+  display:inline-block; padding:2px 9px; border-radius:20px; font-size:.62rem;
+  font-weight:600; letter-spacing:.08em; text-transform:uppercase; margin-bottom:10px;
+}
+.cat-narrow { background:#EAF2FB; color:#1B4F7A; }
+.cat-wide { background:#EBF5F0; color:#1A6040; }
+.cat-regional { background:#FEF3E2; color:#954E0A; }
+.cat-turboprop { background:#F0EBF8; color:#5A2A8A; }
+.cat-cargo { background:#FDF0E8; color:#8A3A10; }
+.cat-bizjet { background:#F8F0E0; color:#7A5010; }
+.cat-military { background:#EEF0EA; color:#3A5020; }
+.cat-seaplane { background:#E8F4FB; color:#0A4A6A; }
+.cat-heli { background:#FBE8EA; color:#7A1020; }
+
+.score-bar-wrap { margin-bottom:10px; }
+.score-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:5px; }
+.score-label { font-size:.7rem; color:var(--ink-light); font-weight:500; }
+.score-num { font-family:'Playfair Display',serif; font-size:1.3rem; font-weight:700; color:var(--blue); }
+.score-track { height:7px; background:var(--border-light); border-radius:4px; overflow:hidden; }
+.score-fill { height:100%; border-radius:4px; background:linear-gradient(90deg,var(--blue),var(--blue-light)); transition:width 1s ease; }
+.score-fill.high { background:linear-gradient(90deg,#1B4F7A,#2A6FA8); }
+.score-fill.mid { background:linear-gradient(90deg,#A07820,#C49A28); }
+.score-fill.low { background:linear-gradient(90deg,#B84C22,#D06030); }
+
+.sub-scores { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:10px; }
+.sub-score { font-size:.65rem; color:var(--ink-light); }
+.sub-score span { color:var(--ink-mid); font-weight:600; }
+
+.specs-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px 10px; margin-bottom:10px; }
+.spec-item { }
+.spec-key { font-size:.62rem; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-light); }
+.spec-val { font-size:.78rem; font-weight:600; color:var(--ink-mid); }
+
+.why-box {
+  background:rgba(27,79,122,.06); border-left:2.5px solid var(--blue);
+  padding:8px 10px; border-radius:0 5px 5px 0; margin-bottom:10px;
+}
+.why-box p { font-size:.72rem; color:var(--ink-mid); line-height:1.5; font-style:italic; }
+
+.card-footer { display:flex; justify-content:flex-end; }
+.wiki-link {
+  font-size:.7rem; font-weight:500; color:var(--blue); text-decoration:none;
+  display:flex; align-items:center; gap:4px;
+  padding:4px 0; border-bottom:1px dashed var(--blue);
+  transition:border-style .15s;
+}
+.wiki-link:hover { border-style:solid; }
+
+/* ── RESULTS TABLE ── */
+.table-section { background:var(--card); border:1.5px solid var(--border-light); border-radius:12px; overflow:hidden; box-shadow:2px 3px 14px var(--shadow); }
+.table-header { padding:14px 18px; border-bottom:1px solid var(--border-light); display:flex; align-items:center; justify-content:space-between; }
+.table-header h3 { font-family:'Playfair Display',serif; font-size:1.05rem; }
+.table-header p { font-size:.73rem; color:var(--ink-light); }
+.filter-bar { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; padding:10px 18px; border-bottom:1px solid var(--border-light); }
+.filter-btn {
+  padding:4px 12px; border:1.5px solid var(--border); border-radius:20px;
+  font-size:.72rem; cursor:pointer; background:var(--bg); color:var(--ink-mid);
+  font-weight:500; transition:all .15s;
+}
+.filter-btn.active { background:var(--blue); color:#fff; border-color:var(--blue); }
+.filter-btn:hover:not(.active) { border-color:var(--blue-light); color:var(--blue); }
+
+.results-table { width:100%; border-collapse:collapse; font-size:.78rem; }
+.results-table th {
+  text-align:left; padding:10px 12px; font-size:.65rem; text-transform:uppercase;
+  letter-spacing:.08em; color:var(--ink-light); font-weight:600;
+  border-bottom:1px solid var(--border-light); cursor:pointer; user-select:none;
+  white-space:nowrap; background:rgba(245,240,229,.6);
+}
+.results-table th:hover { color:var(--blue); }
+.results-table th .sort-icon { margin-left:4px; opacity:.5; }
+.results-table td { padding:9px 12px; border-bottom:.5px solid rgba(200,180,138,.2); color:var(--ink-mid); }
+.results-table tr:last-child td { border-bottom:none; }
+.results-table tr:hover td { background:rgba(27,79,122,.04); }
+.score-pill {
+  display:inline-block; padding:2px 9px; border-radius:20px;
+  font-weight:700; font-size:.73rem; color:#fff; min-width:42px; text-align:center;
+}
+.pill-high { background:var(--blue); }
+.pill-mid { background:var(--gold); }
+.pill-low { background:var(--red); }
+
+/* ── FOOTER ── */
+.site-footer {
+  text-align:center; padding:18px 20px;
+  border-top:1.5px solid var(--border);
+  background:var(--card);
+  font-size:.72rem; color:var(--ink-light);
+}
+.site-footer strong { color:var(--ink-mid); font-family:'Playfair Display',serif; font-style:italic; }
+.site-footer a { color:var(--blue); text-decoration:none; }
+.site-footer a:hover { text-decoration:underline; }
+
+/* ── DRAG SORT HIGHLIGHT ── */
+.priority-item.drag-over { border-color:var(--blue); background:rgba(27,79,122,.07); }
+.priority-item.dragging { opacity:.4; }
+
+/* ── LOADING ── */
+.loading-overlay {
+  display:none; position:fixed; inset:0; background:rgba(244,239,229,.7);
+  backdrop-filter:blur(2px); z-index:200; align-items:center; justify-content:center;
+  flex-direction:column; gap:12px;
+}
+.loading-overlay.show { display:flex; }
+.spinner { width:40px; height:40px; border:3px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg);} }
+.loading-text { font-family:'Playfair Display',serif; font-style:italic; color:var(--ink-mid); font-size:1rem; }
+
+/* SCROLLBAR */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:var(--ink-light); }
+
+/* ── ACCESSIBILITY: FOCUS STATES ── */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible,
+.radio-group label:focus-within, .priority-item:focus-within {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.results-table th:focus-visible { outline-offset: -2px; }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text">Scanning aircraft database…</div>
+</div>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="logo">
+    <div class="logo-icon">✈</div>
+    <div class="logo-text">
+      <h1>AeroMatch</h1>
+      <p>Aircraft Recommender System</p>
+    </div>
+  </div>
+  <div class="header-meta">
+    <div class="author">Vishwak Vemuru</div>
+    <div class="email"><a href="mailto:vishwakvemuru4u@gmail.com">vishwakvemuru4u@gmail.com</a></div>
+  </div>
+</header>
+
+<div class="app-wrap">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <!-- Mission Basics -->
+    <div class="section-title">Mission Basics</div>
+
+    <div class="field">
+      <label>Range Required</label>
+      <div class="range-row">
+        <input type="range" id="rangeSlider" min="100" max="18000" value="3000" step="50" oninput="syncRange(this,'rangeInput','rangeVal','km')">
+        <input type="number" id="rangeInput" value="3000" min="100" max="18000" style="width:80px" onchange="syncFromInput(this,'rangeSlider','rangeVal','km')">
+        <span class="range-val" id="rangeVal">3000 km</span>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Passengers</label>
+        <input type="number" id="paxInput" value="150" min="0" max="900" placeholder="0 if cargo-only">
+      </div>
+      <div class="field">
+        <label>Cargo Weight (kg)</label>
+        <input type="number" id="cargoKg" value="5000" min="0" max="300000">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Cargo Volume (m³)</label>
+      <div class="range-row">
+        <input type="range" id="cargoVolSlider" min="0" max="800" value="20" step="5" oninput="syncRange(this,'cargoVolInput','cargoVolVal','m³')">
+        <input type="number" id="cargoVolInput" value="20" min="0" max="800" style="width:65px" onchange="syncFromInput(this,'cargoVolSlider','cargoVolVal','m³')">
+        <span class="range-val" id="cargoVolVal">20 m³</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Mission Type</label>
+      <select id="missionType">
+        <option value="scheduled">Scheduled Commercial</option>
+        <option value="charter">Charter</option>
+        <option value="cargo">Cargo</option>
+        <option value="vip">VIP / Executive</option>
+        <option value="military">Military Transport</option>
+        <option value="medevac">Medevac</option>
+        <option value="bush">Bush / Remote</option>
+        <option value="sar">SAR (Search & Rescue)</option>
+        <option value="offshore">Offshore Oil & Gas</option>
+        <option value="heliskiing">Heli-Skiing</option>
+        <option value="hems">HEMS (Air Ambulance)</option>
+        <option value="naval">Naval</option>
+        <option value="sling">Sling Load Cargo</option>
+      </select>
+    </div>
+
+    <!-- Operational Constraints -->
+    <div class="section-title">Operational Constraints</div>
+
+    <div class="field">
+      <label>Runway Length Available (m)</label>
+      <div class="range-row">
+        <input type="range" id="runwaySlider" min="0" max="4500" value="2400" step="50" oninput="syncRange(this,'runwayInput','runwayVal','m')">
+        <input type="number" id="runwayInput" value="2400" min="0" max="4500" style="width:70px" onchange="syncFromInput(this,'runwaySlider','runwayVal','m')">
+        <span class="range-val" id="runwayVal">2400 m</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Runway Surface</label>
+      <div class="radio-group">
+        <input type="radio" name="surface" id="s-paved" value="paved" checked><label for="s-paved">Paved</label>
+        <input type="radio" name="surface" id="s-unpaved" value="unpaved"><label for="s-unpaved">Unpaved</label>
+        <input type="radio" name="surface" id="s-water" value="water"><label for="s-water">Water</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Weather / Terrain</label>
+      <div class="radio-group">
+        <input type="radio" name="terrain" id="t-normal" value="normal" checked><label for="t-normal">Normal</label>
+        <input type="radio" name="terrain" id="t-hothigh" value="hothigh"><label for="t-hothigh">Hot & High</label>
+        <input type="radio" name="terrain" id="t-cold" value="cold"><label for="t-cold">Cold / Arctic</label>
+        <input type="radio" name="terrain" id="t-stol" value="stol"><label for="t-stol">Short Strip</label>
+        <input type="radio" name="terrain" id="t-etops" value="etops"><label for="t-etops">Island / ETOPS</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Cruise Altitude Preference</label>
+      <div class="radio-group">
+        <input type="radio" name="altitude" id="a-low" value="low"><label for="a-low">Low</label>
+        <input type="radio" name="altitude" id="a-std" value="standard" checked><label for="a-std">Standard</label>
+        <input type="radio" name="altitude" id="a-high" value="high"><label for="a-high">High (Bizjet)</label>
+      </div>
+    </div>
+
+    <!-- Helicopter extras -->
+    <div id="heliExtras" style="display:none">
+      <div class="section-title">Helicopter Options</div>
+      <div class="field">
+        <label>Hover Capability Needed</label>
+        <div class="radio-group">
+          <input type="radio" name="hover" id="h-yes" value="yes"><label for="h-yes">Yes</label>
+          <input type="radio" name="hover" id="h-no" value="no" checked><label for="h-no">No</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Landing Zone Size</label>
+        <select id="lzSize">
+          <option value="helipad">Full Helipad</option>
+          <option value="confined">Confined Area</option>
+          <option value="shipdeck">Ship Deck</option>
+          <option value="unprepared">Unprepared Ground</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Priorities -->
+    <div class="section-title">Priorities (drag to rank)</div>
+    <div class="priority-list" id="priorityList">
+      <div class="priority-item" draggable="true" data-key="fuel">
+        <div class="priority-rank">1</div><span>⛽ Fuel Efficiency</span>
+        <div class="priority-arrows">
+          <button type="button" draggable="false" onclick="movePriority(this,-1)" aria-label="Move up">▲</button>
+          <button type="button" draggable="false" onclick="movePriority(this,1)" aria-label="Move down">▼</button>
+        </div>
+      </div>
+      <div class="priority-item" draggable="true" data-key="comfort">
+        <div class="priority-rank">2</div><span>🛋 Passenger Comfort</span>
+        <div class="priority-arrows">
+          <button type="button" draggable="false" onclick="movePriority(this,-1)" aria-label="Move up">▲</button>
+          <button type="button" draggable="false" onclick="movePriority(this,1)" aria-label="Move down">▼</button>
+        </div>
+      </div>
+      <div class="priority-item" draggable="true" data-key="cost">
+        <div class="priority-rank">3</div><span>💰 Operating Cost</span>
+        <div class="priority-arrows">
+          <button type="button" draggable="false" onclick="movePriority(this,-1)" aria-label="Move up">▲</button>
+          <button type="button" draggable="false" onclick="movePriority(this,1)" aria-label="Move down">▼</button>
+        </div>
+      </div>
+      <div class="priority-item" draggable="true" data-key="range">
+        <div class="priority-rank">4</div><span>📍 Range Margin</span>
+        <div class="priority-arrows">
+          <button type="button" draggable="false" onclick="movePriority(this,-1)" aria-label="Move up">▲</button>
+          <button type="button" draggable="false" onclick="movePriority(this,1)" aria-label="Move down">▼</button>
+        </div>
+      </div>
+      <div class="priority-item" draggable="true" data-key="speed">
+        <div class="priority-rank">5</div><span>⚡ Speed</span>
+        <div class="priority-arrows">
+          <button type="button" draggable="false" onclick="movePriority(this,-1)" aria-label="Move up">▲</button>
+          <button type="button" draggable="false" onclick="movePriority(this,1)" aria-label="Move down">▼</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Budget -->
+    <div class="section-title">Budget Tier</div>
+    <div class="field">
+      <div class="radio-group">
+        <input type="radio" name="budget" id="b-eco" value="economy"><label for="b-eco">Economy</label>
+        <input type="radio" name="budget" id="b-std" value="standard" checked><label for="b-std">Standard</label>
+        <input type="radio" name="budget" id="b-vip" value="premium"><label for="b-vip">Premium</label>
+        <input type="radio" name="budget" id="b-mil" value="military"><label for="b-mil">Military</label>
+      </div>
+    </div>
+
+    <button class="find-btn" onclick="findAircraft()">✈ Find My Aircraft</button>
+    <button class="reset-btn" onclick="resetForm()">Reset Inputs</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <div class="results-header">
+      <h2>Aircraft Recommendations</h2>
+      <p id="resultsSubtitle">Configure your mission parameters and click <em>Find My Aircraft</em> to begin.</p>
+    </div>
+
+    <div id="emptyState" class="empty-state">
+      <div class="plane-big">✈</div>
+      <h3>Ready for take-off</h3>
+      <p>Set your mission requirements in the panel and discover the perfect aircraft from our database of 123 entries.</p>
+    </div>
+
+    <div id="resultsContainer" style="display:none">
+      <!-- Top 3 -->
+      <div class="top3" id="top3Cards"></div>
+
+      <!-- Full Table -->
+      <div class="table-section">
+        <div class="table-header">
+          <div>
+            <h3>All Qualifying Aircraft</h3>
+          </div>
+          <p id="tableCount"></p>
+        </div>
+        <div class="filter-bar" id="filterBar"></div>
+        <div style="overflow-x:auto">
+          <table class="results-table" id="resultsTable">
+            <thead>
+              <tr>
+                <th onclick="sortTable('score')" title="Sort by score"># Score <span class="sort-icon">↕</span></th>
+                <th onclick="sortTable('name')">Aircraft <span class="sort-icon">↕</span></th>
+                <th onclick="sortTable('cat')">Category <span class="sort-icon">↕</span></th>
+                <th onclick="sortTable('range')">Range (km) <span class="sort-icon">↕</span></th>
+                <th onclick="sortTable('pax')">Pax <span class="sort-icon">↕</span></th>
+                <th onclick="sortTable('cargo')">Cargo (kg) <span class="sort-icon">↕</span></th>
+                <th onclick="sortTable('runway')">Runway (m) <span class="sort-icon">↕</span></th>
+                <th onclick="sortTable('cruise')">Speed (km/h) <span class="sort-icon">↕</span></th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<footer class="site-footer">
+  AeroMatch &mdash; Built by <strong>Vishwak Vemuru</strong> &middot;
+  <a href="mailto:vishwakvemuru4u@gmail.com">vishwakvemuru4u@gmail.com</a>
+  &middot; Aircraft database: 123 entries across 9 categories
+</footer>
+
+<script>
+// ──────────────────────────────────────────────
+//  AIRCRAFT DATABASE
+// ──────────────────────────────────────────────
+// Fields: id, name, mfg, cat, range(km), pax, cargo(kg), cargoVol(m³),
+//   runway(m), surface(paved/unpaved/water/any), cruise(km/h), mtow(kg),
+//   etops, hotHigh, cold, missions[], budget[], wiki, img(emoji fallback)
+const DB = [
+// ── NARROW-BODY JETS ──────────────────────────
+{id:'a220-100',name:'A220-100',mfg:'Airbus',cat:'narrow',range:5500,pax:110,cargo:10000,cargoVol:28,runway:1500,surface:'paved',cruise:830,mtow:63100,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A220',img:'✈'},
+{id:'a220-300',name:'A220-300',mfg:'Airbus',cat:'narrow',range:6300,pax:130,cargo:14000,cargoVol:36,runway:1890,surface:'paved',cruise:830,mtow:70900,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A220',img:'✈'},
+{id:'a319neo',name:'A319neo',mfg:'Airbus',cat:'narrow',range:6850,pax:120,cargo:16000,cargoVol:38,runway:1850,surface:'paved',cruise:833,mtow:75500,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Airbus_A320neo_family',img:'✈'},
+{id:'a320neo',name:'A320neo',mfg:'Airbus',cat:'narrow',range:6300,pax:165,cargo:20000,cargoVol:38,runway:2100,surface:'paved',cruise:833,mtow:79000,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Airbus_A320neo_family',img:'✈'},
+{id:'a321neo',name:'A321neo',mfg:'Airbus',cat:'narrow',range:7400,pax:194,cargo:26000,cargoVol:51,runway:2200,surface:'paved',cruise:833,mtow:97000,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Airbus_A321neo',img:'✈'},
+{id:'a321xlr',name:'A321XLR',mfg:'Airbus',cat:'narrow',range:8700,pax:194,cargo:26000,cargoVol:51,runway:2200,surface:'paved',cruise:833,mtow:101000,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A321XLR',img:'✈'},
+{id:'b737-700',name:'B737-700',mfg:'Boeing',cat:'narrow',range:6370,pax:126,cargo:16000,cargoVol:38,runway:1634,surface:'paved',cruise:834,mtow:70080,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_737_Classic',img:'✈'},
+{id:'b737-800',name:'B737-800',mfg:'Boeing',cat:'narrow',range:5765,pax:162,cargo:20000,cargoVol:45,runway:2090,surface:'paved',cruise:842,mtow:79016,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_737_Next_Generation',img:'✈'},
+{id:'b737-900er',name:'B737-900ER',mfg:'Boeing',cat:'narrow',range:5460,pax:180,cargo:23000,cargoVol:52,runway:2400,surface:'paved',cruise:842,mtow:85139,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_737_Next_Generation',img:'✈'},
+{id:'b737max8',name:'B737 MAX 8',mfg:'Boeing',cat:'narrow',range:6570,pax:162,cargo:20000,cargoVol:45,runway:2500,surface:'paved',cruise:839,mtow:82191,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_737_MAX',img:'✈'},
+{id:'b737max10',name:'B737 MAX 10',mfg:'Boeing',cat:'narrow',range:6110,pax:188,cargo:24000,cargoVol:51,runway:3000,surface:'paved',cruise:839,mtow:89765,etops:true,hotHigh:true,cold:true,missions:['scheduled'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_737_MAX',img:'✈'},
+{id:'b757-200',name:'B757-200',mfg:'Boeing',cat:'narrow',range:7220,pax:200,cargo:28000,cargoVol:56,runway:2408,surface:'paved',cruise:854,mtow:115680,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_757',img:'✈'},
+{id:'b757-300',name:'B757-300',mfg:'Boeing',cat:'narrow',range:6421,pax:243,cargo:36000,cargoVol:65,runway:2800,surface:'paved',cruise:854,mtow:123830,etops:false,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_757',img:'✈'},
+{id:'md80',name:'MD-80',mfg:'McDonnell Douglas',cat:'narrow',range:4635,pax:155,cargo:14000,cargoVol:30,runway:2400,surface:'paved',cruise:811,mtow:63050,etops:false,hotHigh:false,cold:false,missions:['scheduled','charter'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/McDonnell_Douglas_MD-80',img:'✈'},
+{id:'md90',name:'MD-90',mfg:'McDonnell Douglas',cat:'narrow',range:3800,pax:153,cargo:13000,cargoVol:28,runway:2530,surface:'paved',cruise:811,mtow:70760,etops:false,hotHigh:false,cold:false,missions:['scheduled'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/McDonnell_Douglas_MD-90',img:'✈'},
+{id:'b717',name:'B717',mfg:'Boeing',cat:'narrow',range:2645,pax:110,cargo:11000,cargoVol:24,runway:1500,surface:'paved',cruise:811,mtow:54900,etops:false,hotHigh:false,cold:false,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_717',img:'✈'},
+{id:'c919',name:'C919',mfg:'COMAC',cat:'narrow',range:5555,pax:168,cargo:21000,cargoVol:44,runway:2200,surface:'paved',cruise:834,mtow:77300,etops:true,hotHigh:true,cold:false,missions:['scheduled'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/COMAC_C919',img:'✈'},
+{id:'arj21',name:'ARJ21',mfg:'COMAC',cat:'narrow',range:3700,pax:90,cargo:8000,cargoVol:20,runway:1900,surface:'paved',cruise:810,mtow:43500,etops:false,hotHigh:true,cold:false,missions:['scheduled','charter'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/COMAC_ARJ21',img:'✈'},
+
+// ── WIDE-BODY JETS ──────────────────────────
+{id:'a330-200',name:'A330-200',mfg:'Airbus',cat:'wide',range:13450,pax:247,cargo:45000,cargoVol:140,runway:2500,surface:'paved',cruise:871,mtow:242000,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A330',img:'✈'},
+{id:'a330-300',name:'A330-300',mfg:'Airbus',cat:'wide',range:11750,pax:277,cargo:45000,cargoVol:160,runway:2770,surface:'paved',cruise:871,mtow:242000,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A330',img:'✈'},
+{id:'a330-900neo',name:'A330-900neo',mfg:'Airbus',cat:'wide',range:13330,pax:287,cargo:50000,cargoVol:160,runway:2770,surface:'paved',cruise:912,mtow:251000,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A330neo',img:'✈'},
+{id:'a340-300',name:'A340-300',mfg:'Airbus',cat:'wide',range:13350,pax:295,cargo:47000,cargoVol:160,runway:3000,surface:'paved',cruise:880,mtow:276500,etops:false,hotHigh:true,cold:true,missions:['scheduled'],budget:['standard'],wiki:'https://en.wikipedia.org/wiki/Airbus_A340',img:'✈'},
+{id:'a340-600',name:'A340-600',mfg:'Airbus',cat:'wide',range:14600,pax:359,cargo:55000,cargoVol:190,runway:3100,surface:'paved',cruise:905,mtow:368000,etops:false,hotHigh:true,cold:true,missions:['scheduled'],budget:['standard'],wiki:'https://en.wikipedia.org/wiki/Airbus_A340',img:'✈'},
+{id:'a350-900',name:'A350-900',mfg:'Airbus',cat:'wide',range:15000,pax:314,cargo:60000,cargoVol:196,runway:2800,surface:'paved',cruise:903,mtow:280000,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A350',img:'✈'},
+{id:'a350-1000',name:'A350-1000',mfg:'Airbus',cat:'wide',range:16100,pax:369,cargo:70000,cargoVol:223,runway:2900,surface:'paved',cruise:910,mtow:316000,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A350',img:'✈'},
+{id:'a350-900ulr',name:'A350-900ULR',mfg:'Airbus',cat:'wide',range:18000,pax:161,cargo:30000,cargoVol:100,runway:3000,surface:'paved',cruise:903,mtow:280000,etops:true,hotHigh:true,cold:true,missions:['scheduled'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A350',img:'✈'},
+{id:'a380',name:'A380',mfg:'Airbus',cat:'wide',range:15200,pax:555,cargo:90000,cargoVol:230,runway:3100,surface:'paved',cruise:903,mtow:575000,etops:true,hotHigh:true,cold:true,missions:['scheduled'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_A380',img:'✈'},
+{id:'b747-400',name:'B747-400',mfg:'Boeing',cat:'wide',range:13450,pax:416,cargo:70000,cargoVol:210,runway:3200,surface:'paved',cruise:910,mtow:412775,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_747-400',img:'✈'},
+{id:'b747-8',name:'B747-8',mfg:'Boeing',cat:'wide',range:14310,pax:467,cargo:80000,cargoVol:220,runway:3100,surface:'paved',cruise:914,mtow:447696,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_747-8',img:'✈'},
+{id:'b767-300er',name:'B767-300ER',mfg:'Boeing',cat:'wide',range:11070,pax:218,cargo:40000,cargoVol:130,runway:2600,surface:'paved',cruise:851,mtow:187700,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_767',img:'✈'},
+{id:'b777-200er',name:'B777-200ER',mfg:'Boeing',cat:'wide',range:13080,pax:314,cargo:65000,cargoVol:200,runway:2900,surface:'paved',cruise:905,mtow:297550,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_777',img:'✈'},
+{id:'b777-300er',name:'B777-300ER',mfg:'Boeing',cat:'wide',range:13650,pax:396,cargo:77000,cargoVol:226,runway:3200,surface:'paved',cruise:905,mtow:352400,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_777',img:'✈'},
+{id:'b777x',name:'B777X',mfg:'Boeing',cat:'wide',range:13500,pax:426,cargo:85000,cargoVol:240,runway:3000,surface:'paved',cruise:910,mtow:352400,etops:true,hotHigh:true,cold:true,missions:['scheduled'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_777X',img:'✈'},
+{id:'b787-8',name:'B787-8',mfg:'Boeing',cat:'wide',range:13530,pax:242,cargo:45000,cargoVol:148,runway:2800,surface:'paved',cruise:903,mtow:227930,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_787_Dreamliner',img:'✈'},
+{id:'b787-9',name:'B787-9',mfg:'Boeing',cat:'wide',range:14140,pax:296,cargo:55000,cargoVol:175,runway:2800,surface:'paved',cruise:903,mtow:254011,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_787_Dreamliner',img:'✈'},
+{id:'b787-10',name:'B787-10',mfg:'Boeing',cat:'wide',range:11910,pax:330,cargo:65000,cargoVol:195,runway:2900,surface:'paved',cruise:903,mtow:254011,etops:true,hotHigh:true,cold:true,missions:['scheduled'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_787_Dreamliner',img:'✈'},
+
+// ── REGIONAL JETS ──────────────────────────
+{id:'e170',name:'Embraer E170',mfg:'Embraer',cat:'regional',range:3735,pax:72,cargo:7000,cargoVol:18,runway:1644,surface:'paved',cruise:870,mtow:35990,etops:false,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Embraer_E-Jet_family',img:'✈'},
+{id:'e175',name:'Embraer E175',mfg:'Embraer',cat:'regional',range:3740,pax:80,cargo:8000,cargoVol:20,runway:1744,surface:'paved',cruise:870,mtow:38790,etops:false,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Embraer_E-Jet_family',img:'✈'},
+{id:'e190',name:'Embraer E190',mfg:'Embraer',cat:'regional',range:4537,pax:100,cargo:10000,cargoVol:26,runway:2040,surface:'paved',cruise:870,mtow:51800,etops:false,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Embraer_E-Jet_family',img:'✈'},
+{id:'e195',name:'Embraer E195',mfg:'Embraer',cat:'regional',range:4260,pax:120,cargo:12000,cargoVol:30,runway:2100,surface:'paved',cruise:870,mtow:52290,etops:false,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Embraer_E-Jet_family',img:'✈'},
+{id:'e190-e2',name:'E190-E2',mfg:'Embraer',cat:'regional',range:5278,pax:100,cargo:12000,cargoVol:26,runway:1880,surface:'paved',cruise:870,mtow:56400,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Embraer_E-Jet_E2_family',img:'✈'},
+{id:'e195-e2',name:'E195-E2',mfg:'Embraer',cat:'regional',range:4800,pax:130,cargo:14000,cargoVol:34,runway:1970,surface:'paved',cruise:870,mtow:61000,etops:true,hotHigh:true,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Embraer_E-Jet_E2_family',img:'✈'},
+{id:'crj200',name:'CRJ-200',mfg:'Bombardier',cat:'regional',range:3148,pax:50,cargo:3000,cargoVol:10,runway:1580,surface:'paved',cruise:830,mtow:23133,etops:false,hotHigh:false,cold:true,missions:['scheduled','charter'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/Bombardier_CRJ200',img:'✈'},
+{id:'crj700',name:'CRJ-700',mfg:'Bombardier',cat:'regional',range:3700,pax:70,cargo:7000,cargoVol:16,runway:1600,surface:'paved',cruise:830,mtow:33020,etops:false,hotHigh:false,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Bombardier_CRJ700_series',img:'✈'},
+{id:'crj900',name:'CRJ-900',mfg:'Bombardier',cat:'regional',range:2877,pax:90,cargo:8000,cargoVol:20,runway:1700,surface:'paved',cruise:830,mtow:36514,etops:false,hotHigh:false,cold:true,missions:['scheduled','charter'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Bombardier_CRJ900',img:'✈'},
+{id:'crj1000',name:'CRJ-1000',mfg:'Bombardier',cat:'regional',range:3004,pax:100,cargo:9000,cargoVol:22,runway:1900,surface:'paved',cruise:830,mtow:41640,etops:false,hotHigh:false,cold:true,missions:['scheduled'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Bombardier_CRJ1000',img:'✈'},
+{id:'ssj100',name:'Superjet 100',mfg:'Sukhoi',cat:'regional',range:4578,pax:98,cargo:9000,cargoVol:24,runway:1731,surface:'paved',cruise:830,mtow:49450,etops:false,hotHigh:false,cold:true,missions:['scheduled','charter'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/Sukhoi_Superjet_100',img:'✈'},
+{id:'mrj70',name:'MRJ70',mfg:'Mitsubishi',cat:'regional',range:3540,pax:70,cargo:5000,cargoVol:14,runway:1600,surface:'paved',cruise:830,mtow:39600,etops:false,hotHigh:false,cold:true,missions:['scheduled'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Mitsubishi_SpaceJet',img:'✈'},
+{id:'atr42',name:'ATR 42',mfg:'ATR',cat:'regional',range:1555,pax:48,cargo:5000,cargoVol:12,runway:1050,surface:'paved',cruise:556,mtow:18600,etops:false,hotHigh:false,cold:true,missions:['scheduled','charter'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/ATR_42',img:'✈'},
+{id:'atr72',name:'ATR 72',mfg:'ATR',cat:'regional',range:1528,pax:70,cargo:8000,cargoVol:18,runway:1290,surface:'paved',cruise:510,mtow:23000,etops:false,hotHigh:false,cold:true,missions:['scheduled','charter'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/ATR_72',img:'✈'},
+
+// ── TURBOPROPS & BUSH ──────────────────────────
+{id:'q400',name:'Dash 8 Q400',mfg:'De Havilland',cat:'turboprop',range:2040,pax:78,cargo:8000,cargoVol:18,runway:1220,surface:'paved',cruise:556,mtow:29574,etops:false,hotHigh:false,cold:true,missions:['scheduled','charter','bush'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/De_Havilland_Canada_Dash_8',img:'🛩'},
+{id:'kingair350',name:'King Air 350',mfg:'Beechcraft',cat:'turboprop',range:2780,pax:9,cargo:1500,cargoVol:4,runway:1200,surface:'unpaved',cruise:578,mtow:6804,etops:false,hotHigh:true,cold:true,missions:['charter','vip','medevac','bush'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Beechcraft_Super_King_Air',img:'🛩'},
+{id:'caravan208',name:'Cessna Caravan 208',mfg:'Cessna',cat:'turboprop',range:1982,pax:12,cargo:1200,cargoVol:3,runway:700,surface:'unpaved',cruise:344,mtow:3629,etops:false,hotHigh:true,cold:false,missions:['charter','cargo','bush','medevac'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/Cessna_208_Caravan',img:'🛩'},
+{id:'pc12',name:'Pilatus PC-12',mfg:'Pilatus',cat:'turboprop',range:3417,pax:9,cargo:1100,cargoVol:3,runway:610,surface:'unpaved',cruise:528,mtow:4740,etops:false,hotHigh:true,cold:true,missions:['charter','vip','cargo','bush','medevac'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Pilatus_PC-12',img:'🛩'},
+{id:'twinotter',name:'Twin Otter DHC-6',mfg:'De Havilland',cat:'turboprop',range:1706,pax:19,cargo:1500,cargoVol:4,runway:300,surface:'unpaved',cruise:337,mtow:5670,etops:false,hotHigh:false,cold:true,missions:['charter','cargo','bush','medevac','sar'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/De_Havilland_Canada_DHC-6_Twin_Otter',img:'🛩'},
+{id:'islander',name:'Britten-Norman Islander',mfg:'Britten-Norman',cat:'turboprop',range:1400,pax:9,cargo:1000,cargoVol:2,runway:290,surface:'unpaved',cruise:274,mtow:3175,etops:false,hotHigh:false,cold:false,missions:['charter','cargo','bush'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/Britten-Norman_Islander',img:'🛩'},
+{id:'pc6',name:'Pilatus PC-6 Porter',mfg:'Pilatus',cat:'turboprop',range:830,pax:9,cargo:1000,cargoVol:2,runway:200,surface:'unpaved',cruise:222,mtow:2800,etops:false,hotHigh:true,cold:true,missions:['charter','cargo','bush','heliskiing'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Pilatus_PC-6_Porter',img:'🛩'},
+{id:'letl410',name:'Let L-410',mfg:'Let Kunovice',cat:'turboprop',range:1360,pax:19,cargo:1700,cargoVol:4,runway:510,surface:'unpaved',cruise:380,mtow:6400,etops:false,hotHigh:false,cold:true,missions:['scheduled','charter','cargo','bush'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/Let_L-410_Turbolet',img:'🛩'},
+{id:'an28',name:'Antonov An-28',mfg:'Antonov',cat:'turboprop',range:1365,pax:17,cargo:1700,cargoVol:4,runway:500,surface:'unpaved',cruise:350,mtow:6500,etops:false,hotHigh:false,cold:true,missions:['charter','cargo','bush'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/Antonov_An-28',img:'🛩'},
+{id:'stol701',name:'STOL CH 701',mfg:'Zenith',cat:'turboprop',range:900,pax:2,cargo:200,cargoVol:1,runway:50,surface:'unpaved',cruise:180,mtow:550,etops:false,hotHigh:false,cold:false,missions:['bush'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/Zenith_STOL_CH_701',img:'🛩'},
+{id:'grandcaravan',name:'Grand Caravan EX',mfg:'Cessna',cat:'turboprop',range:1982,pax:14,cargo:1500,cargoVol:3,runway:700,surface:'unpaved',cruise:344,mtow:3969,etops:false,hotHigh:true,cold:false,missions:['charter','cargo','bush','medevac'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Cessna_208_Caravan',img:'🛩'},
+{id:'kodiak100',name:'Kodiak 100',mfg:'Daher',cat:'turboprop',range:1380,pax:10,cargo:1200,cargoVol:3,runway:400,surface:'unpaved',cruise:333,mtow:3969,etops:false,hotHigh:false,cold:true,missions:['charter','cargo','bush','medevac'],budget:['standard'],wiki:'https://en.wikipedia.org/wiki/Daher_Kodiak',img:'🛩'},
+
+// ── CARGO SPECIALISTS ──────────────────────────
+{id:'b747-400f',name:'B747-400F',mfg:'Boeing',cat:'cargo',range:8230,pax:0,cargo:113000,cargoVol:820,runway:3100,surface:'paved',cruise:910,mtow:412775,etops:true,hotHigh:true,cold:true,missions:['cargo'],budget:['economy','standard','military'],wiki:'https://en.wikipedia.org/wiki/Boeing_747-400',img:'📦'},
+{id:'b747-8f',name:'B747-8F',mfg:'Boeing',cat:'cargo',range:8130,pax:0,cargo:134200,cargoVol:858,runway:3100,surface:'paved',cruise:914,mtow:447696,etops:true,hotHigh:true,cold:true,missions:['cargo'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_747-8',img:'📦'},
+{id:'b777f',name:'B777F',mfg:'Boeing',cat:'cargo',range:9070,pax:0,cargo:103000,cargoVol:644,runway:3100,surface:'paved',cruise:905,mtow:347452,etops:true,hotHigh:true,cold:true,missions:['cargo'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Boeing_777F',img:'📦'},
+{id:'a330-200f',name:'A330-200F',mfg:'Airbus',cat:'cargo',range:7400,pax:0,cargo:70000,cargoVol:436,runway:2500,surface:'paved',cruise:871,mtow:233000,etops:true,hotHigh:true,cold:true,missions:['cargo'],budget:['standard'],wiki:'https://en.wikipedia.org/wiki/Airbus_A330',img:'📦'},
+{id:'md11f',name:'MD-11F',mfg:'McDonnell Douglas',cat:'cargo',range:7240,pax:0,cargo:91000,cargoVol:560,runway:3000,surface:'paved',cruise:876,mtow:286000,etops:false,hotHigh:true,cold:true,missions:['cargo'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/McDonnell_Douglas_MD-11',img:'📦'},
+{id:'b767-300f',name:'B767-300F',mfg:'Boeing',cat:'cargo',range:6025,pax:0,cargo:53000,cargoVol:320,runway:2600,surface:'paved',cruise:851,mtow:186880,etops:true,hotHigh:true,cold:true,missions:['cargo'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_767',img:'📦'},
+{id:'b757-200f',name:'B757-200F',mfg:'Boeing',cat:'cargo',range:5834,pax:0,cargo:39780,cargoVol:240,runway:2400,surface:'paved',cruise:854,mtow:116120,etops:true,hotHigh:true,cold:true,missions:['cargo'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Boeing_757',img:'📦'},
+{id:'atr72-600f',name:'ATR 72-600F',mfg:'ATR',cat:'cargo',range:1528,pax:0,cargo:8000,cargoVol:40,runway:1290,surface:'paved',cruise:510,mtow:23000,etops:false,hotHigh:false,cold:true,missions:['cargo','bush'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/ATR_72',img:'📦'},
+{id:'skycourier',name:'Cessna 408 SkyCourier',mfg:'Cessna',cat:'cargo',range:1685,pax:0,cargo:2722,cargoVol:14,runway:900,surface:'unpaved',cruise:338,mtow:6804,etops:false,hotHigh:false,cold:false,missions:['cargo','bush'],budget:['economy'],wiki:'https://en.wikipedia.org/wiki/Cessna_408_SkyCourier',img:'📦'},
+{id:'an124',name:'An-124 Ruslan',mfg:'Antonov',cat:'cargo',range:5400,pax:0,cargo:150000,cargoVol:1000,runway:3000,surface:'paved',cruise:865,mtow:405000,etops:false,hotHigh:false,cold:true,missions:['cargo','military'],budget:['military','economy'],wiki:'https://en.wikipedia.org/wiki/Antonov_An-124_Ruslan',img:'📦'},
+{id:'an225',name:'An-225 Mriya (historical)',mfg:'Antonov',cat:'cargo',range:15400,pax:0,cargo:250000,cargoVol:1500,runway:3500,surface:'paved',cruise:850,mtow:640000,etops:false,hotHigh:false,cold:false,missions:['cargo'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Antonov_An-225_Mriya',img:'📦'},
+
+// ── BIZJETS & VIP ──────────────────────────
+{id:'g280',name:'Gulfstream G280',mfg:'Gulfstream',cat:'bizjet',range:6669,pax:10,cargo:1000,cargoVol:3,runway:1500,surface:'paved',cruise:900,mtow:17374,etops:false,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Gulfstream_G280',img:'💎'},
+{id:'g450',name:'Gulfstream G450',mfg:'Gulfstream',cat:'bizjet',range:8241,pax:16,cargo:1500,cargoVol:4,runway:1600,surface:'paved',cruise:904,mtow:33838,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Gulfstream_IV',img:'💎'},
+{id:'g550',name:'Gulfstream G550',mfg:'Gulfstream',cat:'bizjet',range:12501,pax:18,cargo:2000,cargoVol:5,runway:1800,surface:'paved',cruise:904,mtow:41277,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Gulfstream_G550',img:'💎'},
+{id:'g650er',name:'Gulfstream G650ER',mfg:'Gulfstream',cat:'bizjet',range:13890,pax:18,cargo:2000,cargoVol:5,runway:1900,surface:'paved',cruise:956,mtow:45179,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Gulfstream_G650',img:'💎'},
+{id:'g700',name:'Gulfstream G700',mfg:'Gulfstream',cat:'bizjet',range:13890,pax:19,cargo:2500,cargoVol:6,runway:1900,surface:'paved',cruise:956,mtow:46266,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Gulfstream_G700',img:'💎'},
+{id:'global5500',name:'Global 5500',mfg:'Bombardier',cat:'bizjet',range:9630,pax:16,cargo:1500,cargoVol:4,runway:1900,surface:'paved',cruise:956,mtow:42300,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Bombardier_Global_5000',img:'💎'},
+{id:'global6500',name:'Global 6500',mfg:'Bombardier',cat:'bizjet',range:11112,pax:17,cargo:1800,cargoVol:5,runway:1900,surface:'paved',cruise:956,mtow:45132,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Bombardier_Global_6000',img:'💎'},
+{id:'global7500',name:'Global 7500',mfg:'Bombardier',cat:'bizjet',range:14260,pax:19,cargo:2000,cargoVol:5,runway:1900,surface:'paved',cruise:1000,mtow:48195,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Bombardier_Global_7500',img:'💎'},
+{id:'falcon8x',name:'Dassault Falcon 8X',mfg:'Dassault',cat:'bizjet',range:11945,pax:16,cargo:2000,cargoVol:5,runway:1600,surface:'paved',cruise:904,mtow:33113,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Dassault_Falcon_8X',img:'💎'},
+{id:'falcon10x',name:'Dassault Falcon 10X',mfg:'Dassault',cat:'bizjet',range:13890,pax:16,cargo:2000,cargoVol:5,runway:2000,surface:'paved',cruise:956,mtow:56000,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Dassault_Falcon_10X',img:'💎'},
+{id:'praetor600',name:'Embraer Praetor 600',mfg:'Embraer',cat:'bizjet',range:7400,pax:12,cargo:1200,cargoVol:3,runway:1400,surface:'paved',cruise:870,mtow:20100,etops:true,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Embraer_Praetor_600',img:'💎'},
+{id:'phenom300e',name:'Phenom 300E',mfg:'Embraer',cat:'bizjet',range:3650,pax:10,cargo:500,cargoVol:2,runway:950,surface:'paved',cruise:834,mtow:8150,etops:false,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Embraer_Phenom_300',img:'💎'},
+{id:'longitude',name:'Citation Longitude',mfg:'Cessna',cat:'bizjet',range:6500,pax:12,cargo:900,cargoVol:2,runway:1500,surface:'paved',cruise:890,mtow:17236,etops:false,hotHigh:true,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Cessna_Citation_Longitude',img:'💎'},
+{id:'hondajet',name:'HondaJet Elite II',mfg:'Honda',cat:'bizjet',range:2661,pax:7,cargo:400,cargoVol:1,runway:1200,surface:'paved',cruise:782,mtow:5050,etops:false,hotHigh:false,cold:false,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Honda_HA-420_HondaJet',img:'💎'},
+{id:'pc24',name:'Pilatus PC-24',mfg:'Pilatus',cat:'bizjet',range:3900,pax:10,cargo:1000,cargoVol:3,runway:800,surface:'unpaved',cruise:815,mtow:8300,etops:false,hotHigh:true,cold:true,missions:['vip','charter','bush','medevac'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Pilatus_PC-24',img:'💎'},
+{id:'learjet75',name:'Learjet 75',mfg:'Bombardier',cat:'bizjet',range:3779,pax:9,cargo:600,cargoVol:2,runway:1700,surface:'paved',cruise:863,mtow:9752,etops:false,hotHigh:false,cold:true,missions:['vip','charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Bombardier_Learjet_75',img:'💎'},
+
+// ── MILITARY TRANSPORT ──────────────────────────
+{id:'c130j',name:'C-130J Hercules',mfg:'Lockheed Martin',cat:'military',range:6852,pax:92,cargo:20000,cargoVol:170,runway:1000,surface:'unpaved',cruise:643,mtow:79380,etops:false,hotHigh:true,cold:true,missions:['military','cargo','medevac','bush'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Lockheed_C-130_Hercules',img:'🪖'},
+{id:'c17',name:'C-17 Globemaster III',mfg:'Boeing',cat:'military',range:10390,pax:102,cargo:77520,cargoVol:592,runway:2285,surface:'unpaved',cruise:830,mtow:265350,etops:false,hotHigh:true,cold:true,missions:['military','cargo','medevac'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Boeing_C-17_Globemaster_III',img:'🪖'},
+{id:'a400m',name:'A400M Atlas',mfg:'Airbus',cat:'military',range:8710,pax:116,cargo:37000,cargoVol:340,runway:900,surface:'unpaved',cruise:780,mtow:141000,etops:false,hotHigh:true,cold:true,missions:['military','cargo','medevac'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Airbus_A400M_Atlas',img:'🪖'},
+{id:'c5',name:'C-5 Galaxy',mfg:'Lockheed Martin',cat:'military',range:7400,pax:73,cargo:122470,cargoVol:985,runway:2530,surface:'paved',cruise:833,mtow:381000,etops:false,hotHigh:false,cold:true,missions:['military','cargo'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Lockheed_C-5_Galaxy',img:'🪖'},
+{id:'an70',name:'AN-70',mfg:'Antonov',cat:'military',range:5000,pax:200,cargo:47000,cargoVol:420,runway:800,surface:'unpaved',cruise:750,mtow:132000,etops:false,hotHigh:false,cold:true,missions:['military','cargo'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Antonov_An-70',img:'🪖'},
+{id:'cn235',name:'CASA CN-235',mfg:'Airbus',cat:'military',range:4355,pax:46,cargo:6000,cargoVol:48,runway:930,surface:'unpaved',cruise:460,mtow:16500,etops:false,hotHigh:true,cold:true,missions:['military','cargo','medevac','sar'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/CASA/IPTN_CN-235',img:'🪖'},
+{id:'c295',name:'C-295',mfg:'Airbus',cat:'military',range:5600,pax:71,cargo:9250,cargoVol:72,runway:670,surface:'unpaved',cruise:480,mtow:23200,etops:false,hotHigh:true,cold:true,missions:['military','cargo','medevac','sar'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/CASA/IPTN_CN-235',img:'🪖'},
+{id:'kc390',name:'KC-390',mfg:'Embraer',cat:'military',range:6200,pax:80,cargo:26000,cargoVol:200,runway:1300,surface:'unpaved',cruise:870,mtow:81000,etops:false,hotHigh:true,cold:true,missions:['military','cargo','medevac'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Embraer_KC-390',img:'🪖'},
+{id:'il76',name:'IL-76',mfg:'Ilyushin',cat:'military',range:7500,pax:140,cargo:60000,cargoVol:440,runway:1800,surface:'unpaved',cruise:800,mtow:210000,etops:false,hotHigh:false,cold:true,missions:['military','cargo'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Ilyushin_Il-76',img:'🪖'},
+{id:'y20',name:'Y-20',mfg:'Xian',cat:'military',range:7800,pax:200,cargo:66000,cargoVol:520,runway:2200,surface:'paved',cruise:800,mtow:220000,etops:false,hotHigh:false,cold:true,missions:['military','cargo'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Xian_Y-20',img:'🪖'},
+
+// ── SEAPLANES & AMPHIBIOUS ──────────────────────────
+{id:'cl415',name:'Bombardier CL-415',mfg:'Bombardier',cat:'seaplane',range:2426,pax:0,cargo:6000,cargoVol:8,runway:0,surface:'water',cruise:376,mtow:19890,etops:false,hotHigh:false,cold:false,missions:['sar','cargo'],budget:['military','standard'],wiki:'https://en.wikipedia.org/wiki/Canadair_CL-415',img:'🌊'},
+{id:'dhc6-float',name:'Twin Otter (Float)',mfg:'De Havilland',cat:'seaplane',range:1706,pax:19,cargo:1500,cargoVol:4,runway:0,surface:'water',cruise:337,mtow:5670,etops:false,hotHigh:false,cold:true,missions:['charter','cargo','bush','sar'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/De_Havilland_Canada_DHC-6_Twin_Otter',img:'🌊'},
+{id:'caravan-float',name:'Caravan (Float)',mfg:'Cessna',cat:'seaplane',range:1982,pax:12,cargo:1200,cargoVol:3,runway:0,surface:'water',cruise:344,mtow:3629,etops:false,hotHigh:false,cold:false,missions:['charter','cargo','bush'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Cessna_208_Caravan',img:'🌊'},
+{id:'icona5',name:'Icon A5',mfg:'Icon Aircraft',cat:'seaplane',range:1000,pax:2,cargo:100,cargoVol:0,runway:0,surface:'water',cruise:176,mtow:650,etops:false,hotHigh:false,cold:false,missions:['charter'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Icon_A5',img:'🌊'},
+{id:'lakerenegade',name:'Lake Renegade',mfg:'Lake Aircraft',cat:'seaplane',range:1200,pax:4,cargo:300,cargoVol:1,runway:0,surface:'water',cruise:200,mtow:1250,etops:false,hotHigh:false,cold:false,missions:['charter','bush'],budget:['standard'],wiki:'https://en.wikipedia.org/wiki/Lake_Renegade',img:'🌊'},
+{id:'be200',name:'Beriev Be-200',mfg:'Beriev',cat:'seaplane',range:3850,pax:44,cargo:7500,cargoVol:20,runway:0,surface:'water',cruise:700,mtow:41000,etops:false,hotHigh:false,cold:false,missions:['sar','cargo','charter'],budget:['military','standard'],wiki:'https://en.wikipedia.org/wiki/Beriev_Be-200',img:'🌊'},
+{id:'us2',name:'ShinMaywa US-2',mfg:'ShinMaywa',cat:'seaplane',range:4700,pax:20,cargo:3000,cargoVol:8,runway:0,surface:'water',cruise:560,mtow:47700,etops:false,hotHigh:false,cold:false,missions:['sar','naval'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/ShinMaywa_US-2',img:'🌊'},
+{id:'seastar',name:'Dornier Seastar',mfg:'Dornier',cat:'seaplane',range:1680,pax:12,cargo:1000,cargoVol:3,runway:0,surface:'water',cruise:330,mtow:5350,etops:false,hotHigh:false,cold:false,missions:['charter','cargo','bush'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Dornier_Seastar',img:'🌊'},
+
+// ── HELICOPTERS ──────────────────────────
+{id:'r44',name:'Robinson R44',mfg:'Robinson',cat:'heli',range:560,pax:3,cargo:300,cargoVol:1,runway:0,surface:'any',cruise:203,mtow:1134,etops:false,hotHigh:false,cold:false,missions:['charter','offshore','hems'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Robinson_R44',img:'🚁',heli:true,hover:true},
+{id:'r66',name:'Robinson R66',mfg:'Robinson',cat:'heli',range:650,pax:4,cargo:400,cargoVol:1,runway:0,surface:'any',cruise:222,mtow:1225,etops:false,hotHigh:false,cold:false,missions:['charter','offshore','hems'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Robinson_R66',img:'🚁',heli:true,hover:true},
+{id:'bell206',name:'Bell 206 JetRanger',mfg:'Bell',cat:'heli',range:748,pax:4,cargo:400,cargoVol:1,runway:0,surface:'any',cruise:222,mtow:1451,etops:false,hotHigh:false,cold:true,missions:['charter','offshore','hems'],budget:['economy','standard'],wiki:'https://en.wikipedia.org/wiki/Bell_206',img:'🚁',heli:true,hover:true},
+{id:'h125',name:'Airbus H125',mfg:'Airbus',cat:'heli',range:660,pax:5,cargo:1000,cargoVol:1,runway:0,surface:'any',cruise:241,mtow:2250,etops:false,hotHigh:true,cold:true,missions:['charter','offshore','hems','heliskiing','sling'],budget:['standard'],wiki:'https://en.wikipedia.org/wiki/Eurocopter_AS350_%C3%89cureuil',img:'🚁',heli:true,hover:true},
+{id:'bell412',name:'Bell 412',mfg:'Bell',cat:'heli',range:759,pax:13,cargo:2700,cargoVol:5,runway:0,surface:'any',cruise:259,mtow:5400,etops:false,hotHigh:false,cold:true,missions:['charter','offshore','hems','sar','military','sling'],budget:['standard','military'],wiki:'https://en.wikipedia.org/wiki/Bell_412',img:'🚁',heli:true,hover:true},
+{id:'h145',name:'Airbus H145',mfg:'Airbus',cat:'heli',range:650,pax:9,cargo:1600,cargoVol:3,runway:0,surface:'any',cruise:260,mtow:3700,etops:false,hotHigh:true,cold:true,missions:['hems','charter','offshore','sar'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/Airbus_Helicopters_H145',img:'🚁',heli:true,hover:true},
+{id:'aw139',name:'Leonardo AW139',mfg:'Leonardo',cat:'heli',range:1061,pax:15,cargo:2900,cargoVol:5,runway:0,surface:'any',cruise:306,mtow:6800,etops:false,hotHigh:true,cold:true,missions:['offshore','sar','hems','vip','naval'],budget:['standard','premium'],wiki:'https://en.wikipedia.org/wiki/AgustaWestland_AW139',img:'🚁',heli:true,hover:true},
+{id:'s76d',name:'Sikorsky S-76D',mfg:'Sikorsky',cat:'heli',range:833,pax:12,cargo:2100,cargoVol:4,runway:0,surface:'any',cruise:287,mtow:5307,etops:false,hotHigh:false,cold:true,missions:['offshore','vip','hems','sar'],budget:['premium'],wiki:'https://en.wikipedia.org/wiki/Sikorsky_S-76',img:'🚁',heli:true,hover:true},
+{id:'s92',name:'Sikorsky S-92',mfg:'Sikorsky',cat:'heli',range:999,pax:19,cargo:4536,cargoVol:8,runway:0,surface:'any',cruise:280,mtow:12020,etops:false,hotHigh:false,cold:true,missions:['offshore','sar','vip','military','naval'],budget:['premium','military'],wiki:'https://en.wikipedia.org/wiki/Sikorsky_S-92',img:'🚁',heli:true,hover:true},
+{id:'h225',name:'H225 Super Puma',mfg:'Airbus',cat:'heli',range:857,pax:24,cargo:4750,cargoVol:9,runway:0,surface:'any',cruise:285,mtow:11000,etops:false,hotHigh:false,cold:true,missions:['offshore','sar','vip','military'],budget:['premium','military'],wiki:'https://en.wikipedia.org/wiki/Eurocopter_EC225_Super_Puma',img:'🚁',heli:true,hover:true},
+{id:'aw101',name:'Leonardo AW101 Merlin',mfg:'Leonardo',cat:'heli',range:926,pax:30,cargo:5440,cargoVol:12,runway:0,surface:'any',cruise:278,mtow:15600,etops:false,hotHigh:false,cold:true,missions:['military','sar','naval'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/AgustaWestland_AW101',img:'🚁',heli:true,hover:true},
+{id:'ch47',name:'Boeing CH-47 Chinook',mfg:'Boeing',cat:'heli',range:741,pax:55,cargo:9525,cargoVol:20,runway:0,surface:'any',cruise:296,mtow:22680,etops:false,hotHigh:false,cold:true,missions:['military','sling','cargo'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Boeing_CH-47_Chinook',img:'🚁',heli:true,hover:true},
+{id:'uh60',name:'Sikorsky UH-60 Black Hawk',mfg:'Sikorsky',cat:'heli',range:592,pax:14,cargo:3600,cargoVol:5,runway:0,surface:'any',cruise:296,mtow:10660,etops:false,hotHigh:true,cold:true,missions:['military','hems','sar'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Sikorsky_UH-60_Black_Hawk',img:'🚁',heli:true,hover:true},
+{id:'ah64',name:'Boeing AH-64 Apache',mfg:'Boeing',cat:'heli',range:476,pax:2,cargo:771,cargoVol:0,runway:0,surface:'any',cruise:293,mtow:10433,etops:false,hotHigh:true,cold:true,missions:['military'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Boeing_AH-64_Apache',img:'🚁',heli:true,hover:true},
+{id:'ah1z',name:'Bell AH-1Z Viper',mfg:'Bell',cat:'heli',range:685,pax:2,cargo:0,cargoVol:0,runway:0,surface:'any',cruise:296,mtow:8390,etops:false,hotHigh:true,cold:true,missions:['military','naval'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Bell_AH-1Z_Viper',img:'🚁',heli:true,hover:true},
+{id:'mi26',name:'Mil Mi-26',mfg:'Mil',cat:'heli',range:800,pax:90,cargo:20000,cargoVol:30,runway:0,surface:'any',cruise:295,mtow:56000,etops:false,hotHigh:false,cold:true,missions:['military','cargo','sling'],budget:['military'],wiki:'https://en.wikipedia.org/wiki/Mil_Mi-26',img:'🚁',heli:true,hover:true},
+];
+
+// ──────────────────────────────────────────────
+//  CATEGORY META
+// ──────────────────────────────────────────────
+const CAT_LABELS = {
+  narrow:'Narrow-body Jet', wide:'Wide-body Jet', regional:'Regional Jet',
+  turboprop:'Turboprop/Bush', cargo:'Cargo Specialist', bizjet:'Bizjet/VIP',
+  military:'Military Transport', seaplane:'Seaplane/Amphibious', heli:'Helicopter'
+};
+const CAT_CLASS = {
+  narrow:'cat-narrow', wide:'cat-wide', regional:'cat-regional',
+  turboprop:'cat-turboprop', cargo:'cat-cargo', bizjet:'cat-bizjet',
+  military:'cat-military', seaplane:'cat-seaplane', heli:'cat-heli'
+};
+const CAT_COLORS = {
+  narrow:'#1B4F7A', wide:'#1A6040', regional:'#954E0A', turboprop:'#5A2A8A',
+  cargo:'#8A3A10', bizjet:'#7A5010', military:'#3A5020', seaplane:'#0A4A6A', heli:'#7A1020'
+};
+
+// ──────────────────────────────────────────────
+//  STATE
+// ──────────────────────────────────────────────
+let allResults = [];
+let sortKey = 'score'; let sortDir = -1;
+let activeFilter = 'all';
+
+// ──────────────────────────────────────────────
+//  SYNC HELPERS
+// ──────────────────────────────────────────────
+function syncRange(slider, inputId, valId, unit) {
+  const v = slider.value;
+  document.getElementById(inputId).value = v;
+  document.getElementById(valId).textContent = Number(v).toLocaleString() + ' ' + unit;
+}
+function syncFromInput(input, sliderId, valId, unit) {
+  const v = input.value;
+  document.getElementById(sliderId).value = v;
+  document.getElementById(valId).textContent = Number(v).toLocaleString() + ' ' + unit;
+}
+
+// ──────────────────────────────────────────────
+//  DRAG-SORT PRIORITIES
+// ──────────────────────────────────────────────
+let dragSrc = null;
+document.querySelectorAll('.priority-item').forEach(el => {
+  el.addEventListener('dragstart', e => { dragSrc = el; el.classList.add('dragging'); });
+  el.addEventListener('dragend', e => { el.classList.remove('dragging'); updatePriorityRanks(); });
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('drag-over'); });
+  el.addEventListener('dragleave', e => { el.classList.remove('drag-over'); });
+  el.addEventListener('drop', e => {
+    e.preventDefault(); el.classList.remove('drag-over');
+    if (dragSrc !== el) {
+      const list = document.getElementById('priorityList');
+      const items = [...list.children];
+      const srcI = items.indexOf(dragSrc), dstI = items.indexOf(el);
+      if (srcI < dstI) list.insertBefore(dragSrc, el.nextSibling);
+      else list.insertBefore(dragSrc, el);
+      updatePriorityRanks();
+    }
+  });
+});
+function updatePriorityRanks() {
+  document.querySelectorAll('.priority-item').forEach((el,i) => {
+    el.querySelector('.priority-rank').textContent = i+1;
+  });
+}
+
+// Touch-friendly up/down reordering (alternative to drag-and-drop)
+function movePriority(btn, dir) {
+  const item = btn.closest('.priority-item');
+  const list = item.parentElement;
+  if (dir === -1 && item.previousElementSibling) {
+    list.insertBefore(item, item.previousElementSibling);
+  } else if (dir === 1 && item.nextElementSibling) {
+    list.insertBefore(item.nextElementSibling, item);
+  }
+  updatePriorityRanks();
+}
+
+// Show heli extras for heli missions
+document.getElementById('missionType').addEventListener('change', function() {
+  const heliMissions = ['sar','offshore','heliskiing','hems','naval','sling'];
+  document.getElementById('heliExtras').style.display = heliMissions.includes(this.value) ? 'block' : 'none';
+});
+
+// ──────────────────────────────────────────────
+//  AIRCRAFT ICONS (inline SVG line-art)
+// ──────────────────────────────────────────────
+function planeIconBody() {
+  return `
+    <path d="M95 70 L48 112 L75 112 L122 76 Z" fill="var(--icon-accent)" opacity="0.55"/>
+    <path d="M58 62 L26 32 L40 62 Z" fill="var(--icon-accent)" opacity="0.55"/>
+    <ellipse cx="135" cy="62" rx="85" ry="14" fill="var(--ink-mid)" opacity="0.92"/>
+    <path d="M205 50 Q227 56 221 62 Q227 68 205 74 Z" fill="var(--ink-mid)" opacity="0.92"/>
+    <path d="M58 50 L32 18 L66 50 Z" fill="var(--ink-mid)" opacity="0.92"/>
+    <g fill="var(--card)" opacity="0.9">
+      <circle cx="100" cy="60" r="2.4"/><circle cx="113" cy="60" r="2.4"/>
+      <circle cx="126" cy="60" r="2.4"/><circle cx="139" cy="60" r="2.4"/>
+      <circle cx="152" cy="60" r="2.4"/><circle cx="165" cy="60" r="2.4"/>
+      <circle cx="178" cy="60" r="2.4"/><circle cx="191" cy="60" r="2.4"/>
+      <circle cx="205" cy="60" r="2.4"/>
+    </g>`;
+}
+function heliIconBody() {
+  return `
+    <rect x="18" y="27" width="204" height="3" rx="1.5" fill="var(--icon-accent)" opacity="0.6"/>
+    <circle cx="122" cy="28.5" r="4" fill="var(--ink-mid)"/>
+    <rect x="120" y="29" width="4" height="14" fill="var(--ink-mid)" opacity="0.92"/>
+    <ellipse cx="122" cy="60" rx="55" ry="22" fill="var(--ink-mid)" opacity="0.92"/>
+    <ellipse cx="173" cy="58" rx="18" ry="16" fill="var(--ink-mid)" opacity="0.85"/>
+    <circle cx="173" cy="56" r="8" fill="var(--card)" opacity="0.9"/>
+    <path d="M67 55 L20 45 L20 53 L67 65 Z" fill="var(--ink-mid)" opacity="0.92"/>
+    <rect x="14" y="30" width="3" height="28" rx="1.5" fill="var(--icon-accent)" opacity="0.5"/>
+    <rect x="82" y="86" width="80" height="3" rx="1.5" fill="var(--icon-accent)" opacity="0.6"/>
+    <rect x="97" y="82" width="3" height="10" fill="var(--icon-accent)" opacity="0.6"/>
+    <rect x="147" y="82" width="3" height="10" fill="var(--icon-accent)" opacity="0.6"/>`;
+}
+function waterLines() {
+  return `
+    <path d="M22 100 Q47 92 72 100 T122 100 T172 100 T222 100" stroke="var(--icon-accent)" stroke-width="3" fill="none" opacity="0.55" stroke-linecap="round"/>
+    <path d="M22 110 Q47 102 72 110 T122 110 T172 110 T222 110" stroke="var(--icon-accent)" stroke-width="3" fill="none" opacity="0.35" stroke-linecap="round"/>`;
+}
+function aircraftIcon(ac) {
+  let body;
+  if (ac.heli) body = heliIconBody();
+  else if (ac.cat === 'seaplane') body = planeIconBody() + waterLines();
+  else body = planeIconBody();
+  return `<svg viewBox="0 0 240 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${ac.name} illustration">${body}</svg>`;
+}
+
+// ──────────────────────────────────────────────
+//  SCORING ALGORITHM
+// ──────────────────────────────────────────────
+function scoreAircraft(ac, inputs) {
+  const {reqRange, reqPax, reqCargo, reqCargoVol, reqRunway, surface, terrain,
+         mission, budget, hover, lzSize} = inputs;
+
+  // Auto-boost helis and STOLs for tiny runways
+  const tinyRunway = reqRunway < 100 && surface !== 'paved';
+
+  // 1. RANGE FIT (0-100)
+  let rangeFit;
+  const rangeWithReserve = reqRange * 1.1;
+  if (ac.range >= rangeWithReserve) {
+    rangeFit = Math.min(100, 60 + (ac.range - rangeWithReserve) / rangeWithReserve * 40);
+  } else if (ac.range >= reqRange) {
+    rangeFit = 50;
+  } else {
+    rangeFit = Math.max(0, (ac.range / reqRange) * 50);
+  }
+
+  // 2. CAPACITY FIT (0-100)
+  const paxOk = reqPax === 0 || ac.pax >= reqPax;
+  const cargoOk = ac.cargo >= reqCargo;
+  const volOk = reqCargoVol === 0 || ac.cargoVol >= reqCargoVol;
+  let capacityFit = 0;
+  if (paxOk && cargoOk && volOk) capacityFit = 100;
+  else if (paxOk && cargoOk) capacityFit = 80;
+  else if (cargoOk && volOk) capacityFit = 70;
+  else if (paxOk) capacityFit = 40;
+  else capacityFit = Math.max(0, (Math.min(ac.pax, reqPax) / Math.max(reqPax,1) * 40) + (Math.min(ac.cargo, reqCargo) / Math.max(reqCargo,1) * 40));
+
+  // 2b. OVERSIZE PENALTY — a far larger aircraft than required is operationally inefficient
+  let oversizePenalty = 1;
+  if (reqPax > 0 && ac.pax > Math.max(reqPax * 4, 20)) {
+    oversizePenalty = Math.min(oversizePenalty, Math.max(0.45, (reqPax * 4) / ac.pax));
+  }
+  if (reqCargo > 0 && ac.cargo > Math.max(reqCargo * 6, 5000)) {
+    oversizePenalty = Math.min(oversizePenalty, Math.max(0.45, (reqCargo * 6) / ac.cargo));
+  }
+  capacityFit *= oversizePenalty;
+
+  // 3. RUNWAY FIT (0-100)
+  let runwayFit;
+  if (ac.heli || tinyRunway && (ac.heli || ac.runway < 300)) {
+    runwayFit = tinyRunway ? 100 : (ac.runway <= reqRunway ? 100 : 0);
+  } else if (ac.runway === 0) { // seaplane / heli
+    runwayFit = (surface === 'water' || ac.heli) ? 100 : 10;
+  } else {
+    if (ac.runway <= reqRunway) runwayFit = Math.min(100, 60 + (reqRunway - ac.runway) / 1000 * 40);
+    else runwayFit = Math.max(0, 60 - (ac.runway - reqRunway) / 500 * 60);
+  }
+
+  // 3b. LANDING ZONE FIT — penalise fixed-wing aircraft for confined/ship/unprepared sites
+  if (!ac.heli) {
+    if (lzSize === 'shipdeck' || lzSize === 'confined') {
+      runwayFit *= 0.15;
+    } else if (lzSize === 'unprepared' && ac.surface !== 'unpaved' && ac.surface !== 'any') {
+      runwayFit *= 0.35;
+    }
+  }
+
+  // 4. SURFACE FIT (0-100)
+  let surfaceFit = 100;
+  if (surface === 'water') {
+    surfaceFit = (ac.surface === 'water') ? 100 : (ac.heli ? 80 : 0);
+  } else if (surface === 'unpaved') {
+    if (ac.surface === 'unpaved' || ac.surface === 'any') surfaceFit = 100;
+    else if (ac.heli) surfaceFit = 90;
+    else surfaceFit = 20;
+  } else { // paved
+    if (ac.surface === 'paved' || ac.surface === 'any' || ac.surface === 'unpaved') surfaceFit = 100;
+    else if (ac.surface === 'water') surfaceFit = 0;
+    else surfaceFit = 50;
+  }
+
+  // 5. TERRAIN FIT (0-100)
+  let terrainFit = 80;
+  if (terrain === 'normal') terrainFit = 80;
+  else if (terrain === 'hothigh') terrainFit = ac.hotHigh ? 100 : 20;
+  else if (terrain === 'cold') terrainFit = ac.cold ? 100 : 30;
+  else if (terrain === 'stol') {
+    terrainFit = ac.runway < 800 ? 100 : ac.runway < 1500 ? 60 : 20;
+  } else if (terrain === 'etops') {
+    terrainFit = ac.etops ? 100 : 10;
+  }
+
+  // 6. MISSION FIT (0-100)
+  let missionFit = 50;
+  if (ac.missions.includes(mission)) missionFit = 100;
+  else {
+    const missionCompatMap = {
+      scheduled: ['charter','vip'],
+      charter: ['scheduled','vip','bush'],
+      cargo: ['military'],
+      vip: ['charter'],
+      military: ['cargo'],
+      medevac: ['charter','bush'],
+      bush: ['charter','turboprop'],
+      sar: ['military','hems'],
+      offshore: ['charter'],
+      heliskiing: ['charter'],
+      hems: ['medevac','sar'],
+      naval: ['military'],
+      sling: ['military','cargo'],
+    };
+    const compat = missionCompatMap[mission] || [];
+    if (ac.missions.some(m => compat.includes(m))) missionFit = 65;
+    else missionFit = 20;
+  }
+
+  // 7. BUDGET FIT (0-100)
+  let budgetFit = 0;
+  if (budget === 'military') budgetFit = 90;
+  else if (ac.budget.includes(budget)) budgetFit = 100;
+  else if (budget === 'premium' && ac.budget.includes('standard')) budgetFit = 60;
+  else if (budget === 'standard' && ac.budget.includes('economy')) budgetFit = 70;
+  else if (budget === 'economy' && ac.budget.includes('standard')) budgetFit = 50;
+  else budgetFit = 20;
+
+  // 8. HOVER FIT (0-100) — only fixed-wing aircraft are penalised when hover is required
+  let hoverFit = 100;
+  if (hover === 'yes' && !ac.heli) hoverFit = 5;
+
+  // 9. SPEED / EFFICIENCY scoring modifiers via priorities
+  const priorityOrder = [...document.querySelectorAll('.priority-item')].map(el => el.dataset.key);
+
+  // Normalize speed (0-100): max cruise in DB ~1000 km/h
+  const speedScore = Math.min(100, ac.cruise / 10);
+  // Fuel efficiency: payload-range product proxy — switches to a cargo-ton-km
+  // proxy when the mission has no passengers, so freighters aren't unfairly
+  // penalised just for having pax = 0.
+  const effScore = reqPax === 0
+    ? Math.min(100, (ac.cargo * ac.range) / 8000000)
+    : (ac.pax > 0 ? Math.min(100, (ac.range * ac.pax) / 100000) : 50);
+  // Comfort: wide > narrow > regional > others (passenger missions).
+  // For cargo-only missions, "comfort" is repurposed as cargo-role suitability.
+  const comfortMap = {wide:100, bizjet:95, narrow:70, regional:55, heli:40, turboprop:35, cargo:10, military:20, seaplane:40};
+  const comfortScore = reqPax === 0
+    ? (ac.cat === 'cargo' ? 100 : (ac.missions.includes('cargo') ? 75 : 30))
+    : (comfortMap[ac.cat] || 50);
+  // Cost proxy (lower is better): economy budget = high score
+  const costScore = ac.budget.includes('economy') ? 90 : ac.budget.includes('standard') ? 70 : ac.budget.includes('military') ? 55 : 30;
+  // Range margin
+  const marginScore = ac.range >= reqRange ? Math.min(100, ((ac.range - reqRange) / Math.max(reqRange,1)) * 80 + 40) : 0;
+
+  const priorityScoreMap = {
+    fuel: effScore, comfort: comfortScore, cost: costScore, range: marginScore, speed: speedScore
+  };
+  let priorityBonus = 0;
+  priorityOrder.forEach((key, i) => {
+    const w = (5 - i) / 15; // weights: 0.33, 0.27, 0.2, 0.13, 0.07
+    priorityBonus += (priorityScoreMap[key] || 50) * w;
+  });
+
+  // WEIGHTED FINAL SCORE
+  const baseScore = (
+    rangeFit * 0.24 +
+    capacityFit * 0.20 +
+    runwayFit * 0.13 +
+    surfaceFit * 0.09 +
+    terrainFit * 0.07 +
+    missionFit * 0.10 +
+    budgetFit * 0.07 +
+    hoverFit * 0.10
+  );
+
+  // OPERATIONAL VIABILITY GATE — if a fixed-wing aircraft essentially cannot
+  // use the available runway/surface, it shouldn't rank highly no matter how
+  // good its range/capacity look on paper.
+  let viabilityMultiplier = 1;
+  if (!ac.heli && runwayFit < 15 && surfaceFit < 40) {
+    viabilityMultiplier = 0.4;
+  }
+
+  const finalScore = Math.round((baseScore * 0.75 + priorityBonus * 0.25) * viabilityMultiplier);
+
+  return {
+    score: Math.min(100, Math.max(0, finalScore)),
+    rangeFit: Math.round(rangeFit),
+    capacityFit: Math.round(capacityFit),
+    runwayFit: Math.round(Math.min(100, runwayFit)),
+    surfaceFit: Math.round(surfaceFit),
+    missionFit: Math.round(missionFit),
+    terrainFit: Math.round(terrainFit),
+    hoverFit: Math.round(hoverFit),
+  };
+}
+
+// ──────────────────────────────────────────────
+//  WHY RECOMMENDED
+// ──────────────────────────────────────────────
+function whyText(ac, scores, inputs) {
+  const {reqRange, reqPax, mission} = inputs;
+  let lines = [];
+
+  if (scores.rangeFit >= 80) lines.push(`Its ${ac.range.toLocaleString()} km range comfortably covers your ${reqRange.toLocaleString()} km route with reserve fuel.`);
+  else if (scores.rangeFit >= 50) lines.push(`It can just reach your destination, though fuel planning will be critical.`);
+
+  if (ac.cat === 'bizjet') lines.push(`The cabin offers executive-class comfort ideal for VIP or charter missions.`);
+  else if (ac.cat === 'wide') lines.push(`Wide-body configuration delivers exceptional passenger and cargo capacity.`);
+  else if (ac.cat === 'turboprop') lines.push(`Turboprop economics and unpaved-strip capability suit remote operations.`);
+  else if (ac.cat === 'heli') lines.push(`Helicopter versatility enables point-to-point operations with no runway needed.`);
+  else if (ac.cat === 'military') lines.push(`Military-grade ruggedness and rough-field performance match operational demands.`);
+  else if (ac.cat === 'seaplane') lines.push(`Water-landing capability is the decisive advantage for your selected surface type.`);
+  else if (ac.cat === 'cargo') lines.push(`Dedicated freighter configuration maximises payload for cargo-first missions.`);
+  else if (scores.capacityFit >= 80 && reqPax > 0) lines.push(`Seating for up to ${ac.pax} passengers aligns well with your ${reqPax}-seat requirement.`);
+
+  if (!lines[1]) lines.push(`Strong overall match across range, capacity, and ${mission} mission profile.`);
+  return lines.slice(0,2).join(' ');
+}
+
+// ──────────────────────────────────────────────
+//  FIND AIRCRAFT
+// ──────────────────────────────────────────────
+function findAircraft() {
+  document.getElementById('loadingOverlay').classList.add('show');
+  setTimeout(() => {
+    const inputs = gatherInputs();
+    allResults = DB.map(ac => ({ ac, scores: scoreAircraft(ac, inputs) }))
+                   .sort((a,b) => b.scores.score - a.scores.score);
+    renderResults(inputs);
+    document.getElementById('loadingOverlay').classList.remove('show');
+  }, 600);
+}
+
+function gatherInputs() {
+  return {
+    reqRange: +document.getElementById('rangeInput').value,
+    reqPax: +document.getElementById('paxInput').value,
+    reqCargo: +document.getElementById('cargoKg').value,
+    reqCargoVol: +document.getElementById('cargoVolInput').value,
+    reqRunway: +document.getElementById('runwayInput').value,
+    surface: document.querySelector('input[name=surface]:checked').value,
+    terrain: document.querySelector('input[name=terrain]:checked').value,
+    mission: document.getElementById('missionType').value,
+    budget: document.querySelector('input[name=budget]:checked').value,
+    altitude: document.querySelector('input[name=altitude]:checked').value,
+    hover: document.querySelector('input[name=hover]:checked')?.value || 'no',
+    lzSize: document.getElementById('lzSize')?.value || 'helipad',
+  };
+}
+
+// ──────────────────────────────────────────────
+//  RENDER
+// ──────────────────────────────────────────────
+function renderResults(inputs) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsContainer').style.display = 'block';
+
+  const total = allResults.length;
+  document.getElementById('resultsSubtitle').textContent =
+    `Showing ${total} aircraft ranked for your mission. Top matches highlighted below.`;
+
+  // Top 3
+  const top3 = allResults.slice(0,3);
+  const c3 = document.getElementById('top3Cards');
+  c3.innerHTML = top3.map((r,i) => buildCard(r.ac, r.scores, inputs, i+1)).join('');
+
+  // Filter bar
+  const cats = ['all', ...new Set(allResults.map(r => r.ac.cat))];
+  const fb = document.getElementById('filterBar');
+  fb.innerHTML = cats.map(c => `<button class="filter-btn${c===activeFilter?' active':''}" onclick="setFilter('${c}')">${c==='all'?'All Categories':CAT_LABELS[c]||c}</button>`).join('');
+
+  renderTable();
+}
+
+function buildCard(ac, scores, inputs, rank) {
+  const pct = scores.score;
+  const fillClass = pct>=75?'high':pct>=50?'mid':'low';
+  const why = whyText(ac, scores, inputs);
+  return `
+  <div class="result-card rank-${rank}">
+    <div class="card-img-placeholder" style="--icon-accent:${CAT_COLORS[ac.cat]||'#7A6040'}">${aircraftIcon(ac)}</div>
+    <div class="card-body">
+      <div class="card-rank">#${rank} Recommendation</div>
+      <div class="card-name">${ac.name}</div>
+      <div class="card-mfg">${ac.mfg}</div>
+      <span class="cat-badge ${CAT_CLASS[ac.cat]||''}">${CAT_LABELS[ac.cat]||ac.cat}</span>
+      <div class="score-bar-wrap">
+        <div class="score-header">
+          <span class="score-label">Match Score</span>
+          <span class="score-num">${pct}/100</span>
+        </div>
+        <div class="score-track"><div class="score-fill ${fillClass}" style="width:${pct}%"></div></div>
+      </div>
+      <div class="sub-scores">
+        <div class="sub-score">Range <span>${scores.rangeFit}</span></div>
+        <div class="sub-score">Capacity <span>${scores.capacityFit}</span></div>
+        <div class="sub-score">Runway <span>${scores.runwayFit}</span></div>
+        <div class="sub-score">Mission <span>${scores.missionFit}</span></div>
+      </div>
+      <div class="specs-grid">
+        <div class="spec-item"><div class="spec-key">Range</div><div class="spec-val">${ac.range.toLocaleString()} km</div></div>
+        <div class="spec-item"><div class="spec-key">Max Pax</div><div class="spec-val">${ac.pax}</div></div>
+        <div class="spec-item"><div class="spec-key">Max Cargo</div><div class="spec-val">${(ac.cargo/1000).toFixed(1)} t</div></div>
+        <div class="spec-item"><div class="spec-key">Cruise</div><div class="spec-val">${ac.cruise} km/h</div></div>
+        <div class="spec-item"><div class="spec-key">Runway</div><div class="spec-val">${ac.runway?ac.runway+' m':'N/A'}</div></div>
+        <div class="spec-item"><div class="spec-key">MTOW</div><div class="spec-val">${(ac.mtow/1000).toFixed(0)} t</div></div>
+      </div>
+      <div class="why-box"><p>${why}</p></div>
+      <div class="card-footer"><a href="${ac.wiki}" target="_blank" class="wiki-link">Wikipedia ↗</a></div>
+    </div>
+  </div>`;
+}
+
+function renderTable() {
+  const filtered = activeFilter === 'all' ? allResults : allResults.filter(r => r.ac.cat === activeFilter);
+  const sorted = [...filtered].sort((a,b) => {
+    const av = sortKey==='score' ? a.scores.score : sortKey==='name' ? a.ac.name : sortKey==='cat' ? a.ac.cat : a.ac[sortKey]||0;
+    const bv = sortKey==='score' ? b.scores.score : sortKey==='name' ? b.ac.name : sortKey==='cat' ? b.ac.cat : b.ac[sortKey]||0;
+    if (typeof av === 'string') return sortDir * av.localeCompare(bv);
+    return sortDir * (bv - av);
+  });
+  document.getElementById('tableCount').textContent = `${sorted.length} aircraft`;
+  const tb = document.getElementById('tableBody');
+  tb.innerHTML = sorted.map((r,i) => {
+    const s = r.scores.score;
+    const pillClass = s>=75?'pill-high':s>=50?'pill-mid':'pill-low';
+    return `<tr>
+      <td><span class="score-pill ${pillClass}">${s}</span></td>
+      <td><strong>${r.ac.name}</strong><br><span style="font-size:.68rem;color:var(--ink-light)">${r.ac.mfg}</span></td>
+      <td><span class="cat-badge ${CAT_CLASS[r.ac.cat]||''}" style="font-size:.6rem">${CAT_LABELS[r.ac.cat]||r.ac.cat}</span></td>
+      <td>${r.ac.range.toLocaleString()}</td>
+      <td>${r.ac.pax}</td>
+      <td>${r.ac.cargo.toLocaleString()}</td>
+      <td>${r.ac.runway||'—'}</td>
+      <td>${r.ac.cruise}</td>
+    </tr>`;
+  }).join('');
+}
+
+function setFilter(cat) {
+  activeFilter = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === (cat==='all'?'all categories':(CAT_LABELS[cat]||cat).toLowerCase())));
+  renderTable();
+}
+
+function sortTable(key) {
+  if (sortKey === key) sortDir *= -1;
+  else { sortKey = key; sortDir = -1; }
+  renderTable();
+}
+
+function resetForm() {
+  document.getElementById('rangeSlider').value = 3000;
+  document.getElementById('rangeInput').value = 3000;
+  document.getElementById('rangeVal').textContent = '3,000 km';
+  document.getElementById('paxInput').value = 150;
+  document.getElementById('cargoKg').value = 5000;
+  document.getElementById('cargoVolSlider').value = 20;
+  document.getElementById('cargoVolInput').value = 20;
+  document.getElementById('cargoVolVal').textContent = '20 m³';
+  document.getElementById('runwaySlider').value = 2400;
+  document.getElementById('runwayInput').value = 2400;
+  document.getElementById('runwayVal').textContent = '2,400 m';
+  document.getElementById('s-paved').checked = true;
+  document.getElementById('t-normal').checked = true;
+  document.getElementById('a-std').checked = true;
+  document.getElementById('b-std').checked = true;
+  document.getElementById('missionType').value = 'scheduled';
+  document.getElementById('h-no').checked = true;
+  document.getElementById('lzSize').value = 'helipad';
+  document.getElementById('heliExtras').style.display = 'none';
+
+  // Restore default priority order: fuel, comfort, cost, range, speed
+  const order = ['fuel','comfort','cost','range','speed'];
+  const list = document.getElementById('priorityList');
+  order.forEach(key => {
+    const item = list.querySelector(`.priority-item[data-key="${key}"]`);
+    if (item) list.appendChild(item);
+  });
+  updatePriorityRanks();
+
+  activeFilter = 'all';
+  sortKey = 'score'; sortDir = -1;
+
+  document.getElementById('emptyState').style.display = 'block';
+  document.getElementById('resultsContainer').style.display = 'none';
+  document.getElementById('resultsSubtitle').textContent = 'Configure your mission parameters and click Find My Aircraft to begin.';
+}
+</script>
+</body>
+</html>
